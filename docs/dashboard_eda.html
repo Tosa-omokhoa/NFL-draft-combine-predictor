@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFL Draft Combine Predictor — EDA Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0a0f1e;--steel:#111827;--panel:#151d2e;--border:#1e2d45;--gold:#f0b429;--gold2:#f6d860;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--muted:#4b6080;--text:#e2e8f0;--sub:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--navy);color:var(--text);font-family:'DM Sans',sans-serif;overflow-x:hidden;}
+#entrance{position:fixed;inset:0;background:var(--navy);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.7s ease;}
+#entrance.out{opacity:0;pointer-events:none;}
+.e-logo{font-family:'Bebas Neue',sans-serif;font-size:88px;letter-spacing:6px;color:var(--text);line-height:0.9;text-align:center;animation:up 0.9s cubic-bezier(0.16,1,0.3,1) both;}
+.e-logo span{color:var(--gold);}
+.e-sub{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--sub);text-transform:uppercase;margin-top:20px;animation:up 0.9s 0.25s both;}
+.e-bar{width:220px;height:2px;background:var(--border);margin-top:44px;border-radius:2px;overflow:hidden;animation:up 0.5s 0.5s both;}
+.e-fill{height:100%;background:var(--gold);width:0;transition:width 1.6s ease;}
+@keyframes up{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+.nav{position:sticky;top:0;z-index:100;background:rgba(10,15,30,0.96);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 52px;height:54px;display:flex;align-items:center;justify-content:space-between;}
+.nav-brand{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;color:var(--gold);}
+.nav-links{display:flex;}
+.nav-link{padding:0 22px;height:54px;display:flex;align-items:center;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--sub);border-bottom:2px solid transparent;text-decoration:none;transition:all 0.2s;}
+.nav-link:hover{color:var(--text);}
+.nav-link.active{color:var(--gold);border-bottom-color:var(--gold);}
+.nav-right{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);}
+.hero{background:linear-gradient(135deg,#0a0f1e,#0d1b36,#0a1628);border-bottom:1px solid var(--border);padding:52px 52px 44px;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:-80px;right:-80px;width:480px;height:480px;background:radial-gradient(circle,rgba(240,180,41,0.07) 0%,transparent 70%);border-radius:50%;animation:pulse 7s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
+.hero-tag{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px;animation:up 0.6s 1.9s both;}
+.hero-tag::before{content:'';width:28px;height:1px;background:var(--gold);}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:76px;line-height:0.9;letter-spacing:3px;margin-bottom:14px;animation:up 0.7s 2s both;}
+.hero h1 span{color:var(--gold);}
+.hero-sub{font-size:14px;color:var(--sub);font-weight:300;max-width:500px;line-height:1.7;margin-bottom:32px;animation:up 0.7s 2.1s both;}
+.hero-kpis{display:flex;gap:40px;flex-wrap:wrap;animation:up 0.7s 2.2s both;}
+.kpi{border-left:2px solid var(--gold);padding-left:16px;}
+.kpi-val{font-family:'Bebas Neue',sans-serif;font-size:38px;color:var(--gold);line-height:1;}
+.kpi-label{font-size:10px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+.main{padding:40px 52px;display:grid;gap:28px;max-width:1400px;margin:0 auto;}
+.sec{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:12px;}
+.sec::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent);}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px 32px;position:relative;overflow:hidden;opacity:0;transform:translateY(22px);transition:opacity 0.65s ease,transform 0.65s ease;}
+.panel.vis{opacity:1;transform:translateY(0);}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--gold),transparent);}
+.ptitle{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.psub{font-size:11px;color:var(--sub);margin-bottom:22px;line-height:1.6;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:22px;}
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;}
+.bar-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);width:58px;text-align:right;flex-shrink:0;}
+.bar-lw{width:142px;}
+.bar-track{flex:1;height:22px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden;position:relative;}
+.bar-fill{height:100%;border-radius:4px;width:0;display:flex;align-items:center;padding-left:10px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:#0a0f1e;transition:width 1.2s cubic-bezier(0.25,0.46,0.45,0.94);}
+.bar-fill:hover{filter:brightness(1.12);}
+.bg-gold{background:linear-gradient(to right,#f0b429,#f6d860);}
+.bg-grn{background:linear-gradient(to right,#22c55e,#4ade80);}
+.bg-red{background:linear-gradient(to right,#ef4444,#f87171);}
+.bg-blu{background:linear-gradient(to right,#3b82f6,#60a5fa);}
+.bg-org{background:linear-gradient(to right,#f97316,#fb923c);}
+.bg-yel{background:linear-gradient(to right,#eab308,#f6d860);}
+.yr-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer;}
+.yr-label{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--sub);width:50px;}
+.yr-track{flex:1;height:28px;background:rgba(255,255,255,0.03);border-radius:4px;overflow:hidden;}
+.yr-fill{height:100%;background:linear-gradient(to right,rgba(240,180,41,0.15),rgba(240,180,41,0.5));display:flex;align-items:center;padding-left:10px;width:0;font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);transition:width 1.2s cubic-bezier(0.25,0.46,0.45,0.94);position:relative;}
+.yr-fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:2px;background:var(--gold);opacity:0.5;}
+.school-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;border-radius:4px;transition:background 0.2s;}
+.school-row:hover{background:rgba(240,180,41,0.05);padding-left:6px;}
+.s-rank{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--muted);width:30px;flex-shrink:0;}
+.s-name{font-size:12px;font-weight:500;color:var(--text);flex:1;}
+.s-count{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:42px;}
+.r-h{color:var(--green);font-family:'DM Mono',monospace;font-size:12px;font-weight:600;}
+.r-m{color:var(--gold);font-family:'DM Mono',monospace;font-size:12px;font-weight:600;}
+.fi-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;cursor:pointer;}
+.fi-label{font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);width:200px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fi-track{flex:1;height:16px;background:rgba(255,255,255,0.03);border-radius:3px;overflow:hidden;}
+.fi-fill{height:100%;border-radius:3px;background:linear-gradient(to right,rgba(240,180,41,0.5),var(--gold));width:0;transition:width 1.3s cubic-bezier(0.25,0.46,0.45,0.94);}
+.fi-val{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:36px;text-align:right;}
+.cmp-block{margin-bottom:18px;cursor:pointer;}
+.cmp-label{font-size:10px;color:var(--sub);margin-bottom:6px;font-family:'DM Mono',monospace;letter-spacing:0.5px;}
+.cmp-pair{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.cmp-tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;width:82px;color:var(--sub);font-family:'DM Mono',monospace;}
+.cmp-track{flex:1;height:14px;background:rgba(255,255,255,0.04);border-radius:3px;overflow:hidden;}
+.cmp-fill{height:100%;border-radius:3px;width:0;transition:width 1.2s cubic-bezier(0.25,0.46,0.45,0.94);}
+.cmp-num{font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);width:44px;text-align:right;}
+.score-card{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
+.score-big{font-family:'Bebas Neue',sans-serif;font-size:96px;line-height:0.9;color:var(--gold);}
+.ftable{width:100%;border-collapse:collapse;}
+.ftable th{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:8px 0;border-bottom:1px solid var(--border);text-align:left;}
+.ftable td{font-family:'DM Mono',monospace;font-size:12px;color:var(--sub);padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.03);}
+.ftable td:first-child{color:var(--gold);}
+.ftable tr.mean td{color:var(--text);font-weight:600;border-top:1px solid var(--border);}
+.pipeline{display:flex;align-items:stretch;}
+.pipe-step{flex:1;padding:20px 16px;background:rgba(255,255,255,0.02);border-right:1px solid var(--border);position:relative;transition:background 0.2s;cursor:default;}
+.pipe-step:last-child{border-right:none;}
+.pipe-step:hover{background:rgba(240,180,41,0.04);}
+.pipe-step::after{content:'›';position:absolute;right:-11px;top:50%;transform:translateY(-50%);color:var(--gold);font-size:22px;z-index:2;}
+.pipe-step:last-child::after{display:none;}
+.pipe-num{font-family:'Bebas Neue',sans-serif;font-size:32px;color:rgba(240,180,41,0.2);line-height:1;margin-bottom:6px;}
+.pipe-title{font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.pipe-detail{font-size:10px;color:var(--sub);line-height:1.5;}
+.tip{position:fixed;background:#1e2d45;border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:11px;color:var(--text);pointer-events:none;z-index:500;opacity:0;transition:opacity 0.15s;font-family:'DM Mono',monospace;white-space:nowrap;max-width:320px;white-space:normal;}
+.footer{border-top:1px solid var(--border);padding:24px 52px;display:flex;justify-content:space-between;align-items:center;margin-top:20px;}
+.fl{font-size:12px;color:var(--muted);}
+.fr{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);}
+.flink{color:var(--gold);text-decoration:none;}
+.flink:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<div id="entrance">
+  <div class="e-logo">NFL<br><span>COMBINE</span><br>PREDICTOR</div>
+  <div class="e-sub">GCI World 2026 April &nbsp;·&nbsp; EDA Dashboard</div>
+  <div class="e-bar"><div class="e-fill" id="loadBar"></div></div>
+</div>
+<div class="tip" id="tip"></div>
+
+<nav class="nav">
+  <div class="nav-brand">NFL · DRAFT · PREDICTOR</div>
+  <div class="nav-links">
+    <span class="nav-link active">EDA</span>
+    <a href="dashboard_model.html" class="nav-link">Model Performance</a>
+  </div>
+  <div class="nav-right">26UNN_TOSAYONAME &nbsp;·&nbsp; GCI 2026</div>
+</nav>
+
+<div class="hero">
+  <div class="hero-tag">GCI World 2026 April · In-Class Competition</div>
+  <h1>EXPLORATORY<br><span>DATA</span><br>ANALYSIS</h1>
+  <p class="hero-sub">Deep-dive into NFL Combine metrics, draft selection patterns, school-level insights, and missing data structure spanning 2009–2019.</p>
+  <div class="hero-kpis">
+    <div class="kpi"><div class="kpi-val">2,781</div><div class="kpi-label">Training Players</div></div>
+    <div class="kpi"><div class="kpi-val">696</div><div class="kpi-label">Test Players</div></div>
+    <div class="kpi"><div class="kpi-val">65%</div><div class="kpi-label">Draft Rate</div></div>
+    <div class="kpi"><div class="kpi-val">14</div><div class="kpi-label">Positions</div></div>
+    <div class="kpi"><div class="kpi-val">2009–19</div><div class="kpi-label">Year Range</div></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="panel">
+    <div class="sec">Modelling Pipeline</div>
+    <div class="pipeline">
+      <div class="pipe-step"><div class="pipe-num">01</div><div class="pipe-title">Data Loading</div><div class="pipe-detail">train.csv · test.csv · 15 raw features · 2009–2019 NFL Combine data</div></div>
+      <div class="pipe-step"><div class="pipe-num">02</div><div class="pipe-title">Missing Flags</div><div class="pipe-detail">7 binary indicators for missing combine events before any imputation</div></div>
+      <div class="pipe-step"><div class="pipe-num">03</div><div class="pipe-title">Group Imputation</div><div class="pipe-detail">Position-wise mean. WR sprint filled with WR average, not global mean.</div></div>
+      <div class="pipe-step"><div class="pipe-num">04</div><div class="pipe-title">Target Encoding</div><div class="pipe-detail">Smoothed school draft rate (k=10). Position, Position Type and Player Type rates.</div></div>
+      <div class="pipe-step"><div class="pipe-num">05</div><div class="pipe-title">Feature Engineering</div><div class="pipe-detail">BMI, Power composite, Agility composite, position z-scores for 9 metrics.</div></div>
+      <div class="pipe-step"><div class="pipe-num">06</div><div class="pipe-title">Ensemble</div><div class="pipe-detail">5-Fold CV · LightGBM + XGBoost · 60/40 blend · Optuna-tuned · CV AUC 0.853</div></div>
+    </div>
+  </div>
+
+  <div class="g21">
+    <div class="panel">
+      <div class="ptitle">Draft Rate by Position</div>
+      <div class="psub">Hover bars for details. % of combine attendees selected in the NFL Draft, 2009–2019.</div>
+      <div class="bar-row" data-tip="OLB (Outside Linebacker) — highest draft rate at 75.9%. Every OLB who attends the combine has a very high chance of being selected."><div class="bar-label">OLB</div><div class="bar-track"><div class="bar-fill bg-gold" data-w="75.9">75.9%</div></div></div>
+      <div class="bar-row" data-tip="DT (Defensive Tackle) — 71.5% draft rate. Size and interior pass-rushing ability are at a premium."><div class="bar-label">DT</div><div class="bar-track"><div class="bar-fill bg-gold" data-w="71.5">71.5%</div></div></div>
+      <div class="bar-row" data-tip="OT (Offensive Tackle) — 70.8% draft rate. Blindside protection is one of the most valued skills in the NFL."><div class="bar-label">OT</div><div class="bar-track"><div class="bar-fill bg-gold" data-w="70.8">70.8%</div></div></div>
+      <div class="bar-row" data-tip="DE (Defensive End) — 70.2% draft rate."><div class="bar-label">DE</div><div class="bar-track"><div class="bar-fill bg-gold" data-w="70.2">70.2%</div></div></div>
+      <div class="bar-row" data-tip="TE (Tight End) — 69.8% draft rate."><div class="bar-label">TE</div><div class="bar-track"><div class="bar-fill bg-grn" data-w="69.8">69.8%</div></div></div>
+      <div class="bar-row" data-tip="CB (Cornerback) — 69.2% draft rate. Teams always need defensive backs."><div class="bar-label">CB</div><div class="bar-track"><div class="bar-fill bg-grn" data-w="69.2">69.2%</div></div></div>
+      <div class="bar-row" data-tip="FS (Free Safety) — 68.7% draft rate."><div class="bar-label">FS</div><div class="bar-track"><div class="bar-fill bg-grn" data-w="68.7">68.7%</div></div></div>
+      <div class="bar-row" data-tip="ILB (Inside Linebacker) — 67.8% draft rate."><div class="bar-label">ILB</div><div class="bar-track"><div class="bar-fill bg-grn" data-w="67.8">67.8%</div></div></div>
+      <div class="bar-row" data-tip="QB (Quarterback) — 62.3% draft rate. Only so many QB spots are available across 32 teams."><div class="bar-label">QB</div><div class="bar-track"><div class="bar-fill bg-blu" data-w="62.3">62.3%</div></div></div>
+      <div class="bar-row" data-tip="RB (Running Back) — 61.2% draft rate. Position value has declined in modern NFL."><div class="bar-label">RB</div><div class="bar-track"><div class="bar-fill bg-blu" data-w="61.2">61.2%</div></div></div>
+      <div class="bar-row" data-tip="WR (Wide Receiver) — 59.5% draft rate. Very competitive position with many invitees."><div class="bar-label">WR</div><div class="bar-track"><div class="bar-fill bg-blu" data-w="59.5">59.5%</div></div></div>
+      <div class="bar-row" data-tip="FB (Fullback) — 48.8% draft rate. Fullback usage has declined significantly in the modern passing era."><div class="bar-label">FB</div><div class="bar-track"><div class="bar-fill bg-org" data-w="48.8">48.8%</div></div></div>
+      <div class="bar-row" data-tip="K (Kicker) — only 28.9% drafted. Specialist positions are rarely used draft picks."><div class="bar-label">K</div><div class="bar-track"><div class="bar-fill bg-red" data-w="28.9">28.9%</div></div></div>
+      <div class="bar-row" data-tip="P (Punter) — lowest rate at 22.7%. Teams rarely spend draft capital on punters."><div class="bar-label">P</div><div class="bar-track"><div class="bar-fill bg-red" data-w="22.7">22.7%</div></div></div>
+    </div>
+
+    <div class="panel score-card">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;">Best Public Score</div>
+      <div class="score-big" id="scoreCounter">0.000</div>
+      <div style="font-size:11px;color:var(--sub);letter-spacing:2px;text-transform:uppercase;margin-top:8px;">ROC-AUC · Omnicampus</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px;">GCI World 2026 · 26UNN_Tosayoname</div>
+      <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border);width:100%;">
+        <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;font-family:'DM Mono',monospace;">CV Fold Results</div>
+        <table class="ftable">
+          <tr><th>Fold</th><th>LGB</th><th>XGB</th></tr>
+          <tr><td>1</td><td>0.84625</td><td>0.83897</td></tr>
+          <tr><td>2</td><td>0.88070</td><td>0.88154</td></tr>
+          <tr><td>3</td><td>0.86884</td><td>0.87079</td></tr>
+          <tr><td>4</td><td>0.80356</td><td>0.81144</td></tr>
+          <tr><td>5</td><td>0.85935</td><td>0.85955</td></tr>
+          <tr class="mean"><td>Mean</td><td>0.85174</td><td>0.85246</td></tr>
+        </table>
+      </div>
+      <div style="margin-top:20px;">
+        <a href="dashboard_model.html" style="display:inline-block;padding:10px 24px;background:rgba(240,180,41,0.12);border:1px solid rgba(240,180,41,0.3);border-radius:6px;color:var(--gold);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.background='rgba(240,180,41,0.2)'" onmouseout="this.style.background='rgba(240,180,41,0.12)'">Model Performance →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="panel">
+      <div class="ptitle">Missing Value Analysis</div>
+      <div class="psub">Hover bars for imputation strategy. Missing flags are added as model features before imputation.</div>
+      <div class="bar-row" data-tip="35% missing — highest rate. Filled with position-group mean (e.g. average LB 3-cone time, not all positions). Binary flag Agility_3cone_missing added as a feature."><div class="bar-label bar-lw">Agility 3-Cone</div><div class="bar-track"><div class="bar-fill bg-red" data-w="78">34.9%</div></div></div>
+      <div class="bar-row" data-tip="33% missing. Shuttle_missing flag added. Position-group mean imputation applied."><div class="bar-label bar-lw">Shuttle Run</div><div class="bar-track"><div class="bar-fill bg-red" data-w="73.3">32.8%</div></div></div>
+      <div class="bar-row" data-tip="26% missing. Not all positions test bench press. Group mean imputation. Bench_Press_Reps_missing flag added."><div class="bar-label bar-lw">Bench Press Reps</div><div class="bar-track"><div class="bar-fill bg-org" data-w="57.8">25.9%</div></div></div>
+      <div class="bar-row" data-tip="21% missing. Broad_Jump_missing flag added."><div class="bar-label bar-lw">Broad Jump</div><div class="bar-track"><div class="bar-fill bg-org" data-w="46.7">20.9%</div></div></div>
+      <div class="bar-row" data-tip="20% missing. Vertical_Jump_missing flag added."><div class="bar-label bar-lw">Vertical Jump</div><div class="bar-track"><div class="bar-fill bg-org" data-w="44.4">19.9%</div></div></div>
+      <div class="bar-row" data-tip="16% missing. Age_missing ranks #3 in feature importance — missing age is itself a strong signal of draft outcome!"><div class="bar-label bar-lw">Age</div><div class="bar-track"><div class="bar-fill bg-yel" data-w="34.8">15.6%</div></div></div>
+      <div class="bar-row" data-tip="Only 5% missing. Sprint_40yd_missing flag added. Most athletes complete this test."><div class="bar-label bar-lw">40-Yard Sprint</div><div class="bar-track"><div class="bar-fill bg-grn" data-w="11.6">5.2%</div></div></div>
+      <div style="margin-top:18px;padding:14px;background:rgba(240,180,41,0.05);border-radius:6px;border:1px solid rgba(240,180,41,0.14);">
+        <div style="font-size:11px;color:var(--gold);font-weight:600;margin-bottom:4px;">Key Insight: Missing ≠ Random</div>
+        <div style="font-size:11px;color:var(--sub);line-height:1.6;">Age_missing ranks #3 in feature importance — above all raw combine metrics. Athletes who skip age reporting have a distinct draft profile. Absence of data is itself predictive.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ptitle">Draft Rate by Year (2009–2019)</div>
+      <div class="psub">Hover bars for athlete count. The 2019 dip reflects fewer available records from that year.</div>
+      <div class="yr-row" data-tip="2009 — 253 athletes attended the combine that year"><div class="yr-label">2009</div><div class="yr-track"><div class="yr-fill" data-w="63.2">63.2%</div></div></div>
+      <div class="yr-row" data-tip="2010 — 262 athletes"><div class="yr-label">2010</div><div class="yr-track"><div class="yr-fill" data-w="65.6">65.6%</div></div></div>
+      <div class="yr-row" data-tip="2011 — 278 athletes (largest cohort)"><div class="yr-label">2011</div><div class="yr-track"><div class="yr-fill" data-w="67.6">67.6%</div></div></div>
+      <div class="yr-row" data-tip="2012 — 261 athletes"><div class="yr-label">2012</div><div class="yr-track"><div class="yr-fill" data-w="64.8">64.8%</div></div></div>
+      <div class="yr-row" data-tip="2013 — 256 athletes"><div class="yr-label">2013</div><div class="yr-track"><div class="yr-fill" data-w="67.2">67.2%</div></div></div>
+      <div class="yr-row" data-tip="2014 — 260 athletes"><div class="yr-label">2014</div><div class="yr-track"><div class="yr-fill" data-w="66.5">66.5%</div></div></div>
+      <div class="yr-row" data-tip="2015 — 250 athletes"><div class="yr-label">2015</div><div class="yr-track"><div class="yr-fill" data-w="64.4">64.4%</div></div></div>
+      <div class="yr-row" data-tip="2016 — 260 athletes"><div class="yr-label">2016</div><div class="yr-track"><div class="yr-fill" data-w="65.0">65.0%</div></div></div>
+      <div class="yr-row" data-tip="2017 — 274 athletes"><div class="yr-label">2017</div><div class="yr-track"><div class="yr-fill" data-w="67.5">67.5%</div></div></div>
+      <div class="yr-row" data-tip="2018 — 250 athletes"><div class="yr-label">2018</div><div class="yr-track"><div class="yr-fill" data-w="61.2">61.2%</div></div></div>
+      <div class="yr-row" data-tip="2019 — only 177 athletes in dataset. Fewer records = lower apparent draft rate."><div class="yr-label">2019</div><div class="yr-track"><div class="yr-fill" data-w="57.1">57.1%</div></div></div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="panel">
+      <div class="ptitle">Top 20 Feature Importances</div>
+      <div class="psub">LightGBM gain importance, averaged across 5 CV folds. Hover each bar for the insight behind the feature.</div>
+      <div class="fi-row" data-tip="#1: Position-normalised 40yd sprint z-score. Being faster than your positional peers matters far more than raw speed. A 4.5s sprint is elite for an OT but below average for a WR."><div class="fi-label">Sprint_40yd_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="100"></div></div><div class="fi-val">100.8</div></div>
+      <div class="fi-row" data-tip="#2: Smoothed school draft rate. Georgia, Oklahoma, Miami FL, Clemson, Ohio St. all produce 73-80% draft rates. School prestige is a real, measurable signal."><div class="fi-label">School_encoded</div><div class="fi-track"><div class="fi-fill" data-w="87.7"></div></div><div class="fi-val">88.4</div></div>
+      <div class="fi-row" data-tip="#3: Binary flag — age was missing. Athletes who skip age reporting have a distinct draft profile. Absence IS a signal, ranking above all raw performance metrics!"><div class="fi-label">Age_missing</div><div class="fi-track"><div class="fi-fill" data-w="63.9"></div></div><div class="fi-val">64.4</div></div>
+      <div class="fi-row" data-tip="#4: Position-normalised weight z-score. Being heavier than position peers signals NFL-ready size, especially for linemen."><div class="fi-label">Weight_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="63.1"></div></div><div class="fi-val">63.6</div></div>
+      <div class="fi-row" data-tip="#5: Position-normalised 3-cone agility z-score. Agility relative to position group."><div class="fi-label">Agility_3cone_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="47.6"></div></div><div class="fi-val">48.0</div></div>
+      <div class="fi-row" data-tip="#6: Year of combine. Scouting priorities and draft depth shift across seasons."><div class="fi-label">Year</div><div class="fi-track"><div class="fi-fill" data-w="41.7"></div></div><div class="fi-val">42.0</div></div>
+      <div class="fi-row" data-tip="#7: Position-normalised age z-score. Younger athletes relative to position peers are consistently preferred."><div class="fi-label">Age_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="41.1"></div></div><div class="fi-val">41.4</div></div>
+      <div class="fi-row" data-tip="#8: Historical draft rate for this specific position. OLBs have a 75.9% prior, Punters 22.7%."><div class="fi-label">Position_rate</div><div class="fi-track"><div class="fi-fill" data-w="39.9"></div></div><div class="fi-val">40.2</div></div>
+      <div class="fi-row" data-tip="#9: Position-normalised broad jump z-score."><div class="fi-label">Broad_Jump_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="39.9"></div></div><div class="fi-val">40.2</div></div>
+      <div class="fi-row" data-tip="#10: Position-normalised shuttle run z-score."><div class="fi-label">Shuttle_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="37.7"></div></div><div class="fi-val">38.0</div></div>
+      <div class="fi-row" data-tip="#11: Position-normalised bench press z-score."><div class="fi-label">Bench_Press_Reps_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="30.6"></div></div><div class="fi-val">30.8</div></div>
+      <div class="fi-row" data-tip="#12: Raw 40-yard sprint time. Less predictive than the position-normalised version (rank 1), but still significant."><div class="fi-label">Sprint_40yd</div><div class="fi-track"><div class="fi-fill" data-w="28.0"></div></div><div class="fi-val">28.2</div></div>
+      <div class="fi-row" data-tip="#13: Broad jump / sprint time. Captures explosive speed-power combination."><div class="fi-label">Speed_power_ratio</div><div class="fi-track"><div class="fi-fill" data-w="27.6"></div></div><div class="fi-val">27.8</div></div>
+      <div class="fi-row" data-tip="#14: Body Mass Index (Weight / Height²). Engineered composite feature."><div class="fi-label">BMI</div><div class="fi-track"><div class="fi-fill" data-w="25.6"></div></div><div class="fi-val">25.8</div></div>
+      <div class="fi-row" data-tip="#15: Raw agility 3-cone time."><div class="fi-label">Agility_3cone</div><div class="fi-track"><div class="fi-fill" data-w="24.0"></div></div><div class="fi-val">24.2</div></div>
+      <div class="fi-row" data-tip="#16: Raw broad jump distance."><div class="fi-label">Broad_Jump</div><div class="fi-track"><div class="fi-fill" data-w="22.6"></div></div><div class="fi-val">22.8</div></div>
+      <div class="fi-row" data-tip="#17: Vertical jump / broad jump ratio. Compares pure vertical vs horizontal explosive ability."><div class="fi-label">Vert_Broad_ratio</div><div class="fi-track"><div class="fi-fill" data-w="21.2"></div></div><div class="fi-val">21.4</div></div>
+      <div class="fi-row" data-tip="#18: Position-normalised height z-score."><div class="fi-label">Height_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="20.1"></div></div><div class="fi-val">20.2</div></div>
+      <div class="fi-row" data-tip="#19: Power composite = Vertical Jump + Broad Jump/10 + Bench Press Reps."><div class="fi-label">Power_composite</div><div class="fi-track"><div class="fi-fill" data-w="20.1"></div></div><div class="fi-val">20.2</div></div>
+      <div class="fi-row" data-tip="#20: Raw bench press repetitions at 225 lbs."><div class="fi-label">Bench_Press_Reps</div><div class="fi-track"><div class="fi-fill" data-w="17.1"></div></div><div class="fi-val">17.2</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="ptitle">Top Schools by Draft Rate</div>
+      <div class="psub">Min. 15 combine attendees. Click a row to highlight it. Smoothed target encoding captures this school-level signal.</div>
+      <div id="schoolList">
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">1</div><div class="s-name">Georgia Tech</div><div class="s-count">n=15</div><div class="r-h">80.0%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">2</div><div class="s-name">North Carolina St.</div><div class="s-count">n=25</div><div class="r-h">80.0%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">3</div><div class="s-name">UCLA</div><div class="s-count">n=41</div><div class="r-h">78.0%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">4</div><div class="s-name">Georgia</div><div class="s-count">n=54</div><div class="r-h">77.8%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">5</div><div class="s-name">Oklahoma</div><div class="s-count">n=54</div><div class="r-h">77.8%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">6</div><div class="s-name">Rutgers</div><div class="s-count">n=16</div><div class="r-h">75.0%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">7</div><div class="s-name">Washington</div><div class="s-count">n=35</div><div class="r-m">74.3%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">8</div><div class="s-name">California</div><div class="s-count">n=31</div><div class="r-m">74.2%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">9</div><div class="s-name">Miami (FL)</div><div class="s-count">n=54</div><div class="r-m">74.1%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">10</div><div class="s-name">Baylor</div><div class="s-count">n=27</div><div class="r-m">74.1%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">11</div><div class="s-name">Florida</div><div class="s-count">n=50</div><div class="r-m">74.0%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">12</div><div class="s-name">Clemson</div><div class="s-count">n=57</div><div class="r-m">73.7%</div></div>
+        <div class="school-row" onclick="hl(this)"><div class="s-rank">13</div><div class="s-name">Ohio St.</div><div class="s-count">n=59</div><div class="r-m">72.9%</div></div>
+      </div>
+
+      <div style="margin-top:28px;border-top:1px solid var(--border);padding-top:20px;">
+        <div class="ptitle">Combine Metrics: Drafted vs. Not Drafted</div>
+        <div class="psub" style="margin-bottom:14px;">Hover blocks for context. Sprint/agility: lower is better. Jump/strength: higher is better.</div>
+        <div class="cmp-block" data-tip="Drafted avg 4.740s vs 4.811s. Every tenth of a second matters at the NFL level.">
+          <div class="cmp-label">40-YD SPRINT (sec) — lower is better</div>
+          <div class="cmp-pair"><div class="cmp-tag">Drafted</div><div class="cmp-track"><div class="cmp-fill" style="background:linear-gradient(to right,#22c55e,#4ade80)" data-w="92.3"></div></div><div class="cmp-num">4.740s</div></div>
+          <div class="cmp-pair"><div class="cmp-tag">Not Drafted</div><div class="cmp-track"><div class="cmp-fill" style="background:linear-gradient(to right,#ef4444,#f87171)" data-w="93.7"></div></div><div class="cmp-num">4.811s</div></div>
+        </div>
+        <div class="cmp-block" data-tip="Drafted jump 84.3in vs 81.9in — a 2.5-inch gap in explosiveness.">
+          <div class="cmp-label">VERTICAL JUMP (in) — higher is better</div>
+          <div class="cmp-pair"><div class="cmp-tag">Drafted</div><div class="cmp-track"><div class="cmp-fill" style="background:linear-gradient(to right,#22c55e,#4ade80)" data-w="84.3"></div></div><div class="cmp-num">84.3in</div></div>
+          <div class="cmp-pair"><div class="cmp-tag">Not Drafted</div><div class="cmp-track"><div class="cmp-fill" style="background:linear-gradient(to right,#ef4444,#f87171)" data-w="81.9"></div></div><div class="cmp-num">81.9in</div></div>
+        </div>
+        <div class="cmp-block" data-tip="Drafted avg 20.8 reps vs 19.0 reps. Strength correlates with NFL readiness.">
+          <div class="cmp-label">BENCH PRESS REPS — higher is better</div>
+          <div class="cmp-pair"><div class="cmp-tag">Drafted</div><div class="cmp-track"><div class="cmp-fill" style="background:linear-gradient(to right,#22c55e,#4ade80)" data-w="78"></div></div><div class="cmp-num">20.8</div></div>
+          <div class="cmp-pair"><div class="cmp-tag">Not Drafted</div><div class="cmp-track"><div class="cmp-fill" style="background:linear-gradient(to right,#ef4444,#f87171)" data-w="71.4"></div></div><div class="cmp-num">19.0</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="fl">NFL Draft Combine Predictor &nbsp;·&nbsp; 26UNN_Tosayoname &nbsp;·&nbsp; GCI World 2026 April</div>
+  <div class="fr">
+    <a href="dashboard_model.html" class="flink">Model Performance →</a>
+    &nbsp;&nbsp;&nbsp;
+    <a href="https://github.com/Tosa-omokhoa/NFL-draft-combine-predictor" class="flink" target="_blank">GitHub ↗</a>
+  </div>
+</div>
+
+<script>
+// ENTRANCE
+window.addEventListener('load', () => {
+  const bar = document.getElementById('loadBar');
+  const ent = document.getElementById('entrance');
+  bar.style.width = '100%';
+  setTimeout(() => {
+    ent.classList.add('out');
+    setTimeout(() => { ent.style.display = 'none'; initReveal(); }, 700);
+  }, 1900);
+});
+
+// SCROLL REVEAL
+function initReveal() {
+  const panels = document.querySelectorAll('.panel');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => {
+          e.target.classList.add('vis');
+          animatePanel(e.target);
+        }, i * 90);
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08 });
+  panels.forEach(p => obs.observe(p));
+}
+
+function animatePanel(panel) {
+  panel.querySelectorAll('.bar-fill[data-w]').forEach((el, i) => {
+    setTimeout(() => { el.style.width = el.dataset.w + '%'; }, i * 55);
+  });
+  panel.querySelectorAll('.yr-fill[data-w]').forEach((el, i) => {
+    setTimeout(() => { el.style.width = el.dataset.w + '%'; }, i * 75);
+  });
+  panel.querySelectorAll('.fi-fill[data-w]').forEach((el, i) => {
+    setTimeout(() => { el.style.width = el.dataset.w + '%'; }, i * 45);
+  });
+  panel.querySelectorAll('.cmp-fill[data-w]').forEach((el, i) => {
+    setTimeout(() => { el.style.width = el.dataset.w + '%'; }, i * 65);
+  });
+  const sc = document.getElementById('scoreCounter');
+  if (sc && panel.contains(sc)) animateCount(sc, 0, 0.82983, 1500);
+}
+
+function animateCount(el, from, to, dur) {
+  const t0 = performance.now();
+  function tick(now) {
+    const t = Math.min((now - t0) / dur, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = (from + (to - from) * ease).toFixed(5);
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// TOOLTIP
+const tip = document.getElementById('tip');
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mouseenter', () => { tip.textContent = el.dataset.tip; tip.style.opacity = '1'; });
+  el.addEventListener('mousemove', e => { tip.style.left = (e.clientX + 16) + 'px'; tip.style.top = (e.clientY - 38) + 'px'; });
+  el.addEventListener('mouseleave', () => { tip.style.opacity = '0'; });
+});
+
+// SCHOOL CLICK HIGHLIGHT
+function hl(row) {
+  document.querySelectorAll('.school-row').forEach(r => { r.style.background = ''; r.style.paddingLeft = ''; });
+  row.style.background = 'rgba(240,180,41,0.09)';
+}
+</script>
+</body>
+</html>

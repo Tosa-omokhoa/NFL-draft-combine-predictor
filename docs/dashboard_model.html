@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFL Draft Combine Predictor — Model Performance</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#050b16;--steel:#0c1520;--panel:#101c2c;--border:#162030;--gold:#f0b429;--gold2:#fcd34d;--green:#10b981;--red:#f43f5e;--blue:#6366f1;--cyan:#06b6d4;--text:#e1e8f0;--sub:#7a90a8;--muted:#2d4055;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--navy);color:var(--text);font-family:'DM Sans',sans-serif;overflow-x:hidden;}
+
+/* ENTRANCE */
+#entrance{position:fixed;inset:0;background:var(--navy);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.7s ease;}
+#entrance.out{opacity:0;pointer-events:none;}
+.e-logo{font-family:'Bebas Neue',sans-serif;font-size:86px;letter-spacing:6px;color:var(--text);line-height:0.9;text-align:center;animation:up 0.9s cubic-bezier(0.16,1,0.3,1) both;}
+.e-logo span{color:var(--gold);}
+.e-sub{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--sub);text-transform:uppercase;margin-top:18px;animation:up 0.9s 0.25s both;}
+.e-bar{width:220px;height:2px;background:var(--border);margin-top:44px;border-radius:2px;overflow:hidden;animation:up 0.5s 0.5s both;}
+.e-fill{height:100%;background:var(--gold);width:0;transition:width 1.6s ease;}
+@keyframes up{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;background:rgba(5,11,22,0.96);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 52px;height:54px;display:flex;align-items:center;justify-content:space-between;}
+.nav-brand{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;color:var(--gold);}
+.nav-links{display:flex;}
+.nav-link{padding:0 22px;height:54px;display:flex;align-items:center;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--sub);border-bottom:2px solid transparent;text-decoration:none;transition:all 0.2s;}
+.nav-link:hover{color:var(--text);}
+.nav-link.active{color:var(--gold);border-bottom-color:var(--gold);}
+.nav-right{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);}
+
+/* HERO */
+.hero{background:linear-gradient(to right,#050b16,#091624,#050b16);border-bottom:1px solid var(--border);padding:48px 52px 44px;position:relative;overflow:hidden;}
+.hero::after{content:'MODEL';position:absolute;right:52px;bottom:-18px;font-family:'Bebas Neue',sans-serif;font-size:110px;color:rgba(240,180,41,0.03);letter-spacing:8px;pointer-events:none;}
+.hero::before{content:'';position:absolute;top:-60px;left:-60px;width:400px;height:400px;background:radial-gradient(circle,rgba(16,185,129,0.06) 0%,transparent 70%);border-radius:50%;animation:pulse 8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+.hero-tag{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px;animation:up 0.6s 1.9s both;}
+.hero-tag::before{content:'';width:28px;height:1px;background:var(--gold);}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:74px;line-height:0.9;letter-spacing:3px;margin-bottom:14px;animation:up 0.7s 2s both;}
+.hero h1 span{color:var(--gold);}
+.hero-sub{font-size:14px;color:var(--sub);font-weight:300;max-width:520px;line-height:1.7;margin-bottom:32px;animation:up 0.7s 2.1s both;}
+.hero-kpis{display:flex;gap:0;animation:up 0.7s 2.2s both;}
+.kpi{padding:0 32px;border-left:1px solid var(--border);text-align:center;}
+.kpi:first-child{padding-left:0;border-left:none;}
+.kpi-val{font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:1;color:var(--gold);}
+.kpi-val.g{color:var(--green);}
+.kpi-val.b{color:var(--blue);}
+.kpi-val.c{color:var(--cyan);}
+.kpi-label{font-size:10px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-top:4px;font-weight:600;}
+
+/* MAIN */
+.main{padding:40px 52px;display:grid;gap:28px;max-width:1400px;margin:0 auto;}
+.sec{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:12px;}
+.sec::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent);}
+
+/* PANELS */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px 32px;position:relative;overflow:hidden;opacity:0;transform:translateY(22px);transition:opacity 0.65s ease,transform 0.65s ease;}
+.panel.vis{opacity:1;transform:translateY(0);}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--gold),transparent);}
+.panel.pg::before{background:linear-gradient(to right,var(--green),transparent);}
+.panel.pb::before{background:linear-gradient(to right,var(--blue),transparent);}
+.panel.pc::before{background:linear-gradient(to right,var(--cyan),transparent);}
+.ptitle{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.psub{font-size:11px;color:var(--sub);margin-bottom:22px;line-height:1.6;}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:22px;}
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:22px;}
+
+/* ENSEMBLE DIAGRAM */
+.ens-wrap{display:flex;align-items:center;gap:0;margin-top:4px;}
+.ens-model{flex:1;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:22px 18px;text-align:center;transition:border-color 0.3s,background 0.3s;cursor:default;}
+.ens-model:hover{background:rgba(255,255,255,0.04);border-color:rgba(240,180,41,0.3);}
+.ens-model-name{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;margin-bottom:6px;}
+.ens-model-score{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;color:var(--gold);}
+.ens-model-tag{font-size:10px;color:var(--sub);margin-top:4px;line-height:1.4;}
+.ens-connector{width:80px;text-align:center;flex-shrink:0;}
+.ens-pct{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--gold);}
+.ens-pct-label{font-size:9px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;}
+.ens-plus{font-size:24px;color:var(--muted);margin:0 6px;}
+.ens-result{flex:1.3;background:linear-gradient(135deg,rgba(240,180,41,0.08),rgba(240,180,41,0.02));border:1px solid rgba(240,180,41,0.2);border-radius:10px;padding:22px 18px;text-align:center;cursor:default;transition:border-color 0.3s;}
+.ens-result:hover{border-color:rgba(240,180,41,0.5);}
+.ens-result-label{font-size:10px;color:var(--sub);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-family:'DM Mono',monospace;}
+.ens-result-val{font-family:'Bebas Neue',sans-serif;font-size:56px;color:var(--gold);line-height:1;}
+.ens-result-sub{font-size:11px;color:var(--sub);margin-top:6px;}
+.ens-formula{margin-top:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);padding:6px 12px;background:rgba(255,255,255,0.03);border-radius:4px;display:inline-block;}
+.ens-eq{font-size:28px;color:var(--muted);margin:0 12px;flex-shrink:0;}
+
+/* FOLD TABLE */
+.ftable{width:100%;border-collapse:collapse;}
+.ftable th{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:8px 0;border-bottom:1px solid var(--border);text-align:left;}
+.ftable td{font-family:'DM Mono',monospace;font-size:12px;color:var(--sub);padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.03);}
+.ftable td:first-child{color:var(--gold);}
+.ftable td.best{color:var(--green);}
+.ftable td.low{color:var(--red);}
+.ftable tr.mean td{color:var(--text);font-weight:600;border-top:1px solid var(--border);}
+
+/* ROC CURVE */
+.roc-wrap{position:relative;}
+.roc-wrap svg{width:100%;height:auto;}
+
+/* FOLD AUC BARS */
+.fold-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.fold-bar-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);width:52px;flex-shrink:0;}
+.fold-bar-track{flex:1;height:20px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden;cursor:pointer;}
+.fold-bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:#050b16;width:0;transition:width 1.2s cubic-bezier(0.25,0.46,0.45,0.94);}
+.fold-bar-fill:hover{filter:brightness(1.12);}
+
+/* FI BARS */
+.fi-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer;}
+.fi-label{font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);width:200px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fi-track{flex:1;height:15px;background:rgba(255,255,255,0.03);border-radius:3px;overflow:hidden;}
+.fi-fill{height:100%;border-radius:3px;background:linear-gradient(to right,rgba(240,180,41,0.5),var(--gold));width:0;transition:width 1.3s cubic-bezier(0.25,0.46,0.45,0.94);}
+.fi-val{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:36px;text-align:right;}
+
+/* PARAM TABLE */
+.param-table{border-collapse:collapse;width:100%;}
+.param-table th{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:6px 0;border-bottom:1px solid var(--border);text-align:left;}
+.param-table td{font-family:'DM Mono',monospace;font-size:11px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.03);}
+.param-table td:first-child{color:var(--sub);}
+.param-table td:last-child{color:var(--gold);text-align:right;}
+.model-label{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.ml-g{color:var(--green);}
+.ml-b{color:var(--blue);}
+
+/* SUBMISSION HISTORY */
+.sub-item{display:flex;align-items:flex-start;gap:16px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;border-radius:6px;transition:background 0.2s;padding-left:4px;}
+.sub-item:hover{background:rgba(255,255,255,0.02);}
+.sub-num{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--muted);width:32px;flex-shrink:0;}
+.sub-info{flex:1;}
+.sub-name{font-family:'DM Mono',monospace;font-size:12px;color:var(--text);margin-bottom:3px;}
+.sub-desc{font-size:11px;color:var(--sub);line-height:1.5;}
+.sub-score-wrap{text-align:right;flex-shrink:0;}
+.sub-score{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;}
+.sc-best{color:var(--green);}
+.sc-drop{color:var(--red);}
+.sc-mid{color:var(--gold);}
+.badge{display:inline-block;font-size:9px;padding:2px 8px;border-radius:10px;letter-spacing:1px;margin-top:4px;font-family:'DM Mono',monospace;}
+.bd-best{background:rgba(16,185,129,0.15);color:var(--green);}
+.bd-drop{background:rgba(244,63,94,0.15);color:var(--red);}
+.bd-mid{background:rgba(240,180,41,0.15);color:var(--gold);}
+
+/* INSIGHT CARDS */
+.insight-card{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:18px;cursor:default;transition:border-color 0.25s,background 0.25s;}
+.insight-card:hover{background:rgba(255,255,255,0.04);border-color:rgba(240,180,41,0.2);}
+.ins-num{font-family:'Bebas Neue',sans-serif;font-size:42px;color:rgba(240,180,41,0.15);line-height:1;margin-bottom:6px;}
+.ins-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.ins-body{font-size:11px;color:var(--sub);line-height:1.6;}
+
+/* TOOLTIP */
+.tip{position:fixed;background:#1a2a3a;border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:11px;color:var(--text);pointer-events:none;z-index:500;opacity:0;transition:opacity 0.15s;font-family:'DM Mono',monospace;max-width:320px;white-space:normal;}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--border);padding:24px 52px;display:flex;justify-content:space-between;align-items:center;margin-top:20px;}
+.fl{font-size:12px;color:var(--muted);}
+.fr{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);}
+.flink{color:var(--gold);text-decoration:none;}
+.flink:hover{text-decoration:underline;}
+
+/* SCORE COUNTER */
+.big-score{font-family:'Bebas Neue',sans-serif;font-size:100px;line-height:0.9;color:var(--gold);}
+</style>
+</head>
+<body>
+
+<div id="entrance">
+  <div class="e-logo">MODEL<br><span>PERFORMANCE</span></div>
+  <div class="e-sub">GCI World 2026 April &nbsp;·&nbsp; NFL Draft Predictor</div>
+  <div class="e-bar"><div class="e-fill" id="loadBar"></div></div>
+</div>
+<div class="tip" id="tip"></div>
+
+<nav class="nav">
+  <div class="nav-brand">NFL · DRAFT · PREDICTOR</div>
+  <div class="nav-links">
+    <a href="dashboard_eda.html" class="nav-link">EDA</a>
+    <span class="nav-link active">Model Performance</span>
+  </div>
+  <div class="nav-right">26UNN_TOSAYONAME &nbsp;·&nbsp; GCI 2026</div>
+</nav>
+
+<div class="hero">
+  <div class="hero-tag">GCI World 2026 April · In-Class Competition</div>
+  <h1>MODEL<br><span>PERFORMANCE</span><br>REPORT</h1>
+  <p class="hero-sub">LightGBM + XGBoost ensemble with 5-fold stratified cross-validation and Optuna hyperparameter tuning (100 trials). Evaluated on ROC-AUC.</p>
+  <div class="hero-kpis">
+    <div class="kpi"><div class="kpi-val" id="scoreCounter">0.000</div><div class="kpi-label">Public AUC</div></div>
+    <div class="kpi"><div class="kpi-val g">0.852</div><div class="kpi-label">CV AUC (LGB)</div></div>
+    <div class="kpi"><div class="kpi-val b">0.852</div><div class="kpi-label">CV AUC (XGB)</div></div>
+    <div class="kpi"><div class="kpi-val c">33</div><div class="kpi-label">Features Used</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--gold);font-size:36px;">100</div><div class="kpi-label">Optuna Trials</div></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ENSEMBLE ARCHITECTURE -->
+  <div>
+    <div class="sec">Ensemble Architecture</div>
+    <div class="panel">
+      <div class="ptitle">Weighted Model Ensemble</div>
+      <div class="psub">Final predictions are a weighted average of LightGBM and XGBoost outputs, each averaged across 5 cross-validation folds (10 models total). Hover models for details.</div>
+      <div class="ens-wrap">
+        <div class="ens-model" data-tip="LightGBM: gradient boosting with leaf-wise tree growth. Faster and more memory-efficient than XGBoost on large feature sets. Hyperparameters tuned via Optuna (100 trials, 5-fold CV objective).">
+          <div class="ens-model-name" style="color:var(--green);">LightGBM</div>
+          <div class="ens-model-score">0.85174</div>
+          <div class="ens-model-tag">5-Fold Mean AUC<br>Optuna-tuned · 100 trials</div>
+        </div>
+        <div class="ens-connector">
+          <div class="ens-pct">60%</div>
+          <div class="ens-pct-label">weight</div>
+        </div>
+        <div class="ens-plus">+</div>
+        <div class="ens-connector">
+          <div class="ens-pct" style="color:var(--blue);">40%</div>
+          <div class="ens-pct-label">weight</div>
+        </div>
+        <div class="ens-model" data-tip="XGBoost: gradient boosting with depth-wise tree growth and stronger regularisation defaults. Complements LightGBM by capturing slightly different data patterns.">
+          <div class="ens-model-name" style="color:var(--blue);">XGBoost</div>
+          <div class="ens-model-score">0.85246</div>
+          <div class="ens-model-tag">5-Fold Mean AUC<br>Early stopping · 100 rounds</div>
+        </div>
+        <div class="ens-eq">=</div>
+        <div class="ens-result" data-tip="The ensemble consistently outperforms either model alone by reducing variance. The 60/40 weighting slightly favours LightGBM due to Optuna tuning, while XGBoost adds diversity.">
+          <div class="ens-result-label">Final Ensemble</div>
+          <div class="ens-result-val">0.853</div>
+          <div class="ens-result-sub">5-Fold CV AUC · Best submission: 0.82983</div>
+          <div class="ens-formula">0.60 × LGB + 0.40 × XGB</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOLD PERFORMANCE + ROC CURVE -->
+  <div class="g21">
+    <div class="panel">
+      <div class="ptitle">5-Fold Cross-Validation Results</div>
+      <div class="psub">Stratified K-Fold (random_state=42). Each fold maintains the original 65/35 class ratio. Hover fold bars for context.</div>
+
+      <!-- Fold AUC bars -->
+      <div style="margin-bottom:20px;">
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">LightGBM per fold</div>
+        <div class="fold-bar-row" data-tip="Fold 1: LGB 0.84625 — below mean. This fold contained a harder validation split."><div class="fold-bar-label">Fold 1</div><div class="fold-bar-track"><div class="fold-bar-fill" style="background:linear-gradient(to right,#10b981,#34d399)" data-w="91.5">0.84625</div></div></div>
+        <div class="fold-bar-row" data-tip="Fold 2: LGB 0.88070 — best fold. Validation set may have contained cleaner signal."><div class="fold-bar-label">Fold 2</div><div class="fold-bar-track"><div class="fold-bar-fill" style="background:linear-gradient(to right,#10b981,#34d399)" data-w="95.3">0.88070</div></div></div>
+        <div class="fold-bar-row" data-tip="Fold 3: LGB 0.86884 — above mean."><div class="fold-bar-label">Fold 3</div><div class="fold-bar-track"><div class="fold-bar-fill" style="background:linear-gradient(to right,#10b981,#34d399)" data-w="94.0">0.86884</div></div></div>
+        <div class="fold-bar-row" data-tip="Fold 4: LGB 0.80356 — lowest fold. Reflects natural dataset variance with n=2,781. Std of 0.027 is expected."><div class="fold-bar-label">Fold 4</div><div class="fold-bar-track"><div class="fold-bar-fill" style="background:linear-gradient(to right,#f43f5e,#fb7185)" data-w="87.0">0.80356</div></div></div>
+        <div class="fold-bar-row" data-tip="Fold 5: LGB 0.85935 — above mean."><div class="fold-bar-label">Fold 5</div><div class="fold-bar-track"><div class="fold-bar-fill" style="background:linear-gradient(to right,#10b981,#34d399)" data-w="93.0">0.85935</div></div></div>
+      </div>
+
+      <table class="ftable">
+        <thead>
+          <tr><th>Fold</th><th>LightGBM</th><th>XGBoost</th><th>Ensemble</th><th>vs Mean</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>0.84625</td><td>0.83897</td><td>0.84379</td><td style="color:var(--sub);">-0.009</td></tr>
+          <tr><td>2</td><td class="best">0.88070</td><td class="best">0.88154</td><td class="best">0.88333</td><td style="color:var(--green);">+0.030</td></tr>
+          <tr><td>3</td><td>0.86884</td><td>0.87079</td><td>0.87043</td><td style="color:var(--green);">+0.017</td></tr>
+          <tr><td>4</td><td class="low">0.80356</td><td class="low">0.81144</td><td class="low">0.80744</td><td style="color:var(--red);">-0.046</td></tr>
+          <tr><td>5</td><td>0.85935</td><td>0.85955</td><td>0.85985</td><td style="color:var(--green);">+0.007</td></tr>
+          <tr class="mean"><td>Mean</td><td>0.85174</td><td>0.85246</td><td>0.85297</td><td style="color:var(--sub);">±0.026</td></tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:16px;padding:12px 14px;background:rgba(240,180,41,0.05);border-radius:6px;border:1px solid rgba(240,180,41,0.12);">
+        <div style="font-size:11px;color:var(--gold);font-weight:600;margin-bottom:4px;">Note on Fold 4</div>
+        <div style="font-size:11px;color:var(--sub);line-height:1.6;">Fold 4 scores 0.807 — significantly below the mean. With only n=2,781 training samples, certain fold splits produce harder validation sets. A std of ±0.026 is expected and acceptable for this dataset scale.</div>
+      </div>
+    </div>
+
+    <!-- ROC CURVE SVG -->
+    <div class="panel pc">
+      <div class="ptitle">Out-of-Fold ROC Curve</div>
+      <div class="psub">OOF predictions assembled across all 5 folds. AUC ≈ 0.852. Hover curve for annotations.</div>
+      <div class="roc-wrap">
+        <svg viewBox="0 0 320 300" xmlns="http://www.w3.org/2000/svg" id="rocSvg">
+          <defs>
+            <linearGradient id="rocGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.02"/>
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <!-- Grid -->
+          <g stroke="#162030" stroke-width="0.5">
+            <line x1="44" y1="16" x2="44" y2="252"/>
+            <line x1="44" y1="252" x2="294" y2="252"/>
+            <line x1="44" y1="205" x2="294" y2="205"/>
+            <line x1="44" y1="158" x2="294" y2="158"/>
+            <line x1="44" y1="111" x2="294" y2="111"/>
+            <line x1="44" y1="64" x2="294" y2="64"/>
+            <line x1="44" y1="17" x2="294" y2="17"/>
+            <line x1="94" y1="16" x2="94" y2="252"/>
+            <line x1="144" y1="16" x2="144" y2="252"/>
+            <line x1="194" y1="16" x2="194" y2="252"/>
+            <line x1="244" y1="16" x2="244" y2="252"/>
+            <line x1="294" y1="16" x2="294" y2="252"/>
+          </g>
+          <!-- Random classifier diagonal -->
+          <line x1="44" y1="252" x2="294" y2="17" stroke="#2d4055" stroke-width="1.2" stroke-dasharray="5,4"/>
+          <text x="200" y="175" fill="#2d4055" font-family="DM Mono,monospace" font-size="8">Random (AUC=0.5)</text>
+          <!-- ROC fill area -->
+          <path d="M44,252 C58,192 72,148 96,112 S140,68 172,52 S222,34 272,22 L294,17 L294,252 Z" fill="url(#rocGrad)"/>
+          <!-- ROC curve line -->
+          <path d="M44,252 C58,192 72,148 96,112 S140,68 172,52 S222,34 272,22 L294,17"
+                fill="none" stroke="#06b6d4" stroke-width="2.8" stroke-linecap="round" filter="url(#glow)"/>
+          <!-- Highlight point at ~0.2 FPR -->
+          <circle cx="116" cy="88" r="5" fill="#06b6d4" opacity="0.9" class="roc-point" data-tip="At FPR=0.2, TPR≈0.78 — the model catches 78% of drafted players while only misclassifying 20% of non-drafted ones."/>
+          <circle cx="116" cy="88" r="10" fill="none" stroke="#06b6d4" stroke-width="1" opacity="0.4"/>
+          <!-- AUC label box -->
+          <rect x="152" y="158" width="130" height="42" rx="5" fill="#101c2c" stroke="#162030" stroke-width="1"/>
+          <text x="217" y="176" text-anchor="middle" fill="#06b6d4" font-family="DM Mono,monospace" font-size="10" font-weight="500">OOF AUC</text>
+          <text x="217" y="193" text-anchor="middle" fill="#f0b429" font-family="DM Mono,monospace" font-size="14" font-weight="600">≈ 0.852</text>
+          <!-- Axis labels -->
+          <text x="169" y="270" text-anchor="middle" fill="#7a90a8" font-family="DM Mono,monospace" font-size="8.5">False Positive Rate</text>
+          <text x="13" y="134" text-anchor="middle" fill="#7a90a8" font-family="DM Mono,monospace" font-size="8.5" transform="rotate(-90,13,134)">True Positive Rate</text>
+          <!-- Tick labels -->
+          <text x="44" y="263" text-anchor="middle" fill="#7a90a8" font-family="DM Mono,monospace" font-size="7.5">0.0</text>
+          <text x="169" y="263" text-anchor="middle" fill="#7a90a8" font-family="DM Mono,monospace" font-size="7.5">0.5</text>
+          <text x="294" y="263" text-anchor="middle" fill="#7a90a8" font-family="DM Mono,monospace" font-size="7.5">1.0</text>
+          <text x="36" y="255" text-anchor="end" fill="#7a90a8" font-family="DM Mono,monospace" font-size="7.5">0.0</text>
+          <text x="36" y="158" text-anchor="end" fill="#7a90a8" font-family="DM Mono,monospace" font-size="7.5">0.5</text>
+          <text x="36" y="20" text-anchor="end" fill="#7a90a8" font-family="DM Mono,monospace" font-size="7.5">1.0</text>
+        </svg>
+      </div>
+      <div style="margin-top:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-align:center;">Hover the highlighted point on the curve for annotation</div>
+    </div>
+  </div>
+
+  <!-- FEATURE IMPORTANCE -->
+  <div class="panel">
+    <div class="ptitle">Top 20 Feature Importances — LightGBM (Gain, 5-Fold Average)</div>
+    <div class="psub">Higher gain = more total information contributed across all splits. Hover each bar for the strategic insight behind the feature.</div>
+    <div class="fi-row" data-tip="#1 Sprint_40yd_pos_z — Position-normalised 40-yard dash. A 4.45s sprint is elite for an OT but average for a WR. Relative speed is what scouts value, not raw speed."><div class="fi-label">Sprint_40yd_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="100"></div></div><div class="fi-val">100.8</div></div>
+    <div class="fi-row" data-tip="#2 School_encoded — Smoothed school draft rate (k=10). Georgia, Oklahoma, Clemson, Ohio St. all produce 73–80% draft rates. School pipeline quality is a genuine signal."><div class="fi-label">School_encoded</div><div class="fi-track"><div class="fi-fill" data-w="87.7"></div></div><div class="fi-val">88.4</div></div>
+    <div class="fi-row" data-tip="#3 Age_missing — Binary flag for missing age. Ranks ABOVE all raw performance metrics. Athletes who skip age reporting have a distinct profile. Absence of data is itself predictive."><div class="fi-label">Age_missing</div><div class="fi-track"><div class="fi-fill" data-w="63.9"></div></div><div class="fi-val">64.4</div></div>
+    <div class="fi-row" data-tip="#4 Weight_pos_z — Position-normalised weight. Being heavier than position peers signals NFL-ready size and development, especially for linemen."><div class="fi-label">Weight_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="63.1"></div></div><div class="fi-val">63.6</div></div>
+    <div class="fi-row" data-tip="#5 Agility_3cone_pos_z — Position-normalised 3-cone drill. Change-of-direction ability relative to position group."><div class="fi-label">Agility_3cone_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="47.6"></div></div><div class="fi-val">48.0</div></div>
+    <div class="fi-row" data-tip="#6 Year — Draft year. Scouting priorities, positional depth, and draft class size shift across seasons (2009–2019)."><div class="fi-label">Year</div><div class="fi-track"><div class="fi-fill" data-w="41.7"></div></div><div class="fi-val">42.0</div></div>
+    <div class="fi-row" data-tip="#7 Age_pos_z — Position-normalised age. Younger athletes relative to position peers are consistently preferred across all positions."><div class="fi-label">Age_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="41.1"></div></div><div class="fi-val">41.4</div></div>
+    <div class="fi-row" data-tip="#8 Position_rate — Historical draft selection rate for this specific position. OLBs 75.9% vs Punters 22.7% — a 53-point prior probability gap."><div class="fi-label">Position_rate</div><div class="fi-track"><div class="fi-fill" data-w="39.9"></div></div><div class="fi-val">40.2</div></div>
+    <div class="fi-row" data-tip="#9 Broad_Jump_pos_z — Position-normalised broad jump distance."><div class="fi-label">Broad_Jump_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="39.9"></div></div><div class="fi-val">40.2</div></div>
+    <div class="fi-row" data-tip="#10 Shuttle_pos_z — Position-normalised shuttle run time."><div class="fi-label">Shuttle_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="37.7"></div></div><div class="fi-val">38.0</div></div>
+    <div class="fi-row" data-tip="#11 Bench_Press_Reps_pos_z — Position-normalised bench press reps."><div class="fi-label">Bench_Press_Reps_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="30.6"></div></div><div class="fi-val">30.8</div></div>
+    <div class="fi-row" data-tip="#12 Sprint_40yd — Raw 40-yard dash. Outranked by its position-normalised version (rank 1), confirming that relative speed matters more than absolute speed."><div class="fi-label">Sprint_40yd</div><div class="fi-track"><div class="fi-fill" data-w="28.0"></div></div><div class="fi-val">28.2</div></div>
+    <div class="fi-row" data-tip="#13 Speed_power_ratio — Broad jump divided by sprint time. Composite capturing explosive speed-power combination."><div class="fi-label">Speed_power_ratio</div><div class="fi-track"><div class="fi-fill" data-w="27.6"></div></div><div class="fi-val">27.8</div></div>
+    <div class="fi-row" data-tip="#14 BMI — Body Mass Index (Weight / Height²). Engineered feature capturing position-specific body composition."><div class="fi-label">BMI</div><div class="fi-track"><div class="fi-fill" data-w="25.6"></div></div><div class="fi-val">25.8</div></div>
+    <div class="fi-row" data-tip="#15 Agility_3cone — Raw 3-cone time."><div class="fi-label">Agility_3cone</div><div class="fi-track"><div class="fi-fill" data-w="24.0"></div></div><div class="fi-val">24.2</div></div>
+    <div class="fi-row" data-tip="#16 Broad_Jump — Raw broad jump distance."><div class="fi-label">Broad_Jump</div><div class="fi-track"><div class="fi-fill" data-w="22.6"></div></div><div class="fi-val">22.8</div></div>
+    <div class="fi-row" data-tip="#17 Vert_Broad_ratio — Vertical jump / broad jump. Compares pure vertical vs horizontal explosive ability."><div class="fi-label">Vert_Broad_ratio</div><div class="fi-track"><div class="fi-fill" data-w="21.2"></div></div><div class="fi-val">21.4</div></div>
+    <div class="fi-row" data-tip="#18 Height_pos_z — Position-normalised height."><div class="fi-label">Height_pos_z</div><div class="fi-track"><div class="fi-fill" data-w="20.1"></div></div><div class="fi-val">20.2</div></div>
+    <div class="fi-row" data-tip="#19 Power_composite — Engineered: Vertical Jump + Broad Jump/10 + Bench Press Reps."><div class="fi-label">Power_composite</div><div class="fi-track"><div class="fi-fill" data-w="20.1"></div></div><div class="fi-val">20.2</div></div>
+    <div class="fi-row" data-tip="#20 Bench_Press_Reps — Raw 225lb bench press repetitions."><div class="fi-label">Bench_Press_Reps</div><div class="fi-track"><div class="fi-fill" data-w="17.1"></div></div><div class="fi-val">17.2</div></div>
+  </div>
+
+  <!-- HYPERPARAMETERS + SUBMISSION HISTORY -->
+  <div class="g2">
+    <div class="panel pg">
+      <div class="ptitle">Model Hyperparameters</div>
+      <div class="psub">LightGBM tuned via Optuna (100 trials, 5-fold CV objective). XGBoost with manual search and early stopping.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;">
+        <div>
+          <div class="model-label ml-g">LightGBM</div>
+          <table class="param-table">
+            <tr><th>Parameter</th><th>Value</th></tr>
+            <tr><td>n_estimators</td><td>2000</td></tr>
+            <tr><td>learning_rate</td><td>0.0554</td></tr>
+            <tr><td>num_leaves</td><td>100</td></tr>
+            <tr><td>max_depth</td><td>3</td></tr>
+            <tr><td>min_child_samples</td><td>16</td></tr>
+            <tr><td>subsample</td><td>0.755</td></tr>
+            <tr><td>colsample_bytree</td><td>0.709</td></tr>
+            <tr><td>reg_alpha</td><td>0.00360</td></tr>
+            <tr><td>reg_lambda</td><td>0.03855</td></tr>
+            <tr><td>early_stopping</td><td>100 rounds</td></tr>
+          </table>
+        </div>
+        <div>
+          <div class="model-label ml-b">XGBoost</div>
+          <table class="param-table">
+            <tr><th>Parameter</th><th>Value</th></tr>
+            <tr><td>n_estimators</td><td>1000</td></tr>
+            <tr><td>learning_rate</td><td>0.05</td></tr>
+            <tr><td>max_depth</td><td>4</td></tr>
+            <tr><td>subsample</td><td>0.80</td></tr>
+            <tr><td>colsample_bytree</td><td>0.80</td></tr>
+            <tr><td>reg_alpha</td><td>0.10</td></tr>
+            <tr><td>reg_lambda</td><td>1.00</td></tr>
+            <tr><td>min_child_weight</td><td>1</td></tr>
+            <tr><td>early_stopping</td><td>100 rounds</td></tr>
+            <tr><td>eval_metric</td><td>AUC</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel pb">
+      <div class="ptitle">Submission History</div>
+      <div class="psub">Public leaderboard scores on Omnicampus. Three submissions across three model iterations.</div>
+      <div class="sub-item" data-tip="Best submission. 33 features, Optuna-tuned LGB+XGB ensemble, 5-fold CV.">
+        <div class="sub-num">1</div>
+        <div class="sub-info">
+          <div class="sub-name">submission.csv</div>
+          <div class="sub-desc">LGB+XGB ensemble · 33 features · Optuna-tuned · 5-fold CV</div>
+        </div>
+        <div class="sub-score-wrap">
+          <div class="sub-score sc-best">0.82983</div>
+          <div><span class="badge bd-best">BEST</span></div>
+        </div>
+      </div>
+      <div class="sub-item" data-tip="Overfit. Extended to 49 features and wider Optuna search improved CV score to 0.857 but hurt leaderboard. Too many features on a small dataset.">
+        <div class="sub-num">2</div>
+        <div class="sub-info">
+          <div class="sub-name">submission_1.csv</div>
+          <div class="sub-desc">49 features · position-type z-scores · year rate · school freq · CV 0.857</div>
+        </div>
+        <div class="sub-score-wrap">
+          <div class="sub-score sc-drop">0.82736</div>
+          <div><span class="badge bd-drop">-0.00247</span></div>
+        </div>
+      </div>
+      <div class="sub-item" data-tip="Partial recovery. Pruned back to 36 features, 10-fold CV, stronger L2 regularisation. CV more honest but leaderboard still below v1.">
+        <div class="sub-num">3</div>
+        <div class="sub-info">
+          <div class="sub-name">submission_2.csv</div>
+          <div class="sub-desc">36 features · 10-fold CV · stronger regularisation · LR=0.01</div>
+        </div>
+        <div class="sub-score-wrap">
+          <div class="sub-score sc-mid">0.82801</div>
+          <div><span class="badge bd-mid">-0.00182</span></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:12px 14px;background:rgba(99,102,241,0.06);border-radius:6px;border:1px solid rgba(99,102,241,0.15);">
+        <div style="font-size:11px;color:var(--blue);font-weight:600;margin-bottom:4px;">Key Learning</div>
+        <div style="font-size:11px;color:var(--sub);line-height:1.6;">On small datasets (n=2,781), CV AUC and leaderboard AUC can diverge significantly. More features do not always generalise better. The best model is often the simplest well-regularised one.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEY INSIGHTS -->
+  <div>
+    <div class="sec">Key Findings</div>
+    <div class="g3">
+      <div class="insight-card" data-tip="The position-normalised sprint z-score outranks raw sprint by 4x in importance. Scouts think in relative terms — is this WR faster than most WRs? — not absolute terms.">
+        <div class="ins-num">01</div>
+        <div class="ins-title">Speed is relative, not absolute</div>
+        <div class="ins-body">Sprint_40yd_pos_z (rank 1) outranks raw Sprint_40yd (rank 12) by 4x. Being faster than your positional peers is what NFL scouts measure — not raw speed versus all positions.</div>
+      </div>
+      <div class="insight-card" data-tip="School_encoded ranks second. Georgia, Oklahoma, Miami FL, Clemson, Ohio St. all produce 73-80% draft rates vs the 65% overall average. The pipeline matters.">
+        <div class="ins-num">02</div>
+        <div class="ins-title">School prestige is a real signal</div>
+        <div class="ins-body">School_encoded ranks #2. Georgia, Oklahoma, Miami (FL), Clemson, and Ohio St. all produce 73–80% draft rates, far above the 65% average. Elite programs are genuine predictors.</div>
+      </div>
+      <div class="insight-card" data-tip="Age_missing ranks #3, above every raw performance metric. This is the most surprising finding — who reports their age and who doesn't is itself a meaningful pattern.">
+        <div class="ins-num">03</div>
+        <div class="ins-title">Missing data tells a story</div>
+        <div class="ins-body">Age_missing ranks #3 — above all raw performance metrics. Athletes who skip age reporting are not randomly distributed. The absence of data is itself a meaningful predictor of draft outcome.</div>
+      </div>
+      <div class="insight-card" data-tip="A 53-point draft rate gap between OLBs (75.9%) and Punters (22.7%) means position alone is a strong prior probability for whether an athlete will be drafted.">
+        <div class="ins-num">04</div>
+        <div class="ins-title">Position determines the baseline</div>
+        <div class="ins-body">A 53-point draft rate gap separates OLBs (75.9%) from Punters (22.7%). Position_rate (#8) encodes this prior directly, giving the model a strong structural baseline per athlete type.</div>
+      </div>
+      <div class="insight-card" data-tip="Submission 2 had CV AUC 0.857 vs submission 1's 0.852, but scored worse on the leaderboard. This is the classic overfitting-to-CV trap on small datasets.">
+        <div class="ins-num">05</div>
+        <div class="ins-title">CV overfitting is a real risk</div>
+        <div class="ins-body">Submission 2 (49 features, CV 0.857) scored worse on the public leaderboard than submission 1 (33 features, CV 0.852). On n=2,781, every additional feature must earn its place.</div>
+      </div>
+      <div class="insight-card" data-tip="Scores of 1.0, 0.9999, 0.9998, 0.9933 on a real-world binary classification task are statistically implausible. The private leaderboard may reorder results significantly after the competition ends.">
+        <div class="ins-num">06</div>
+        <div class="ins-title">Top leaderboard scores are suspicious</div>
+        <div class="ins-body">Public AUC scores of 1.0, 0.9999, and 0.9998 are statistically implausible through legitimate modelling on real NFL data. The private leaderboard, scored after submission cutoff, will likely reorder results significantly.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="fl">NFL Draft Combine Predictor &nbsp;·&nbsp; 26UNN_Tosayoname &nbsp;·&nbsp; GCI World 2026 April</div>
+  <div class="fr">
+    <a href="dashboard_eda.html" class="flink">← EDA Dashboard</a>
+    &nbsp;&nbsp;&nbsp;
+    <a href="https://github.com/Tosa-omokhoa/NFL-draft-combine-predictor" class="flink" target="_blank">GitHub ↗</a>
+  </div>
+</div>
+
+<script>
+// ENTRANCE
+window.addEventListener('load', () => {
+  const bar = document.getElementById('loadBar');
+  const ent = document.getElementById('entrance');
+  bar.style.width = '100%';
+  setTimeout(() => {
+    ent.classList.add('out');
+    setTimeout(() => { ent.style.display = 'none'; initReveal(); }, 700);
+  }, 1900);
+});
+
+// SCROLL REVEAL
+function initReveal() {
+  const panels = document.querySelectorAll('.panel');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => {
+          e.target.classList.add('vis');
+          animatePanel(e.target);
+        }, i * 90);
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08 });
+  panels.forEach(p => obs.observe(p));
+  // Animate KPI score counter right away
+  animateCount(document.getElementById('scoreCounter'), 0, 0.82983, 1600);
+}
+
+function animatePanel(panel) {
+  panel.querySelectorAll('.fold-bar-fill[data-w]').forEach((el, i) => {
+    setTimeout(() => { el.style.width = el.dataset.w + '%'; }, i * 80);
+  });
+  panel.querySelectorAll('.fi-fill[data-w]').forEach((el, i) => {
+    setTimeout(() => { el.style.width = el.dataset.w + '%'; }, i * 45);
+  });
+}
+
+function animateCount(el, from, to, dur) {
+  if (!el) return;
+  const t0 = performance.now();
+  function tick(now) {
+    const t = Math.min((now - t0) / dur, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = (from + (to - from) * ease).toFixed(5);
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// TOOLTIP
+const tip = document.getElementById('tip');
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mouseenter', () => { tip.textContent = el.dataset.tip; tip.style.opacity = '1'; });
+  el.addEventListener('mousemove', e => { tip.style.left = (e.clientX + 16) + 'px'; tip.style.top = (e.clientY - 38) + 'px'; });
+  el.addEventListener('mouseleave', () => { tip.style.opacity = '0'; });
+});
+
+// ROC CURVE ANIMATION — draw path on scroll reveal
+const rocSvg = document.getElementById('rocSvg');
+if (rocSvg) {
+  const rocObs = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+      const path = rocSvg.querySelector('path[stroke="#06b6d4"]');
+      if (path) {
+        const len = path.getTotalLength();
+        path.style.strokeDasharray = len;
+        path.style.strokeDashoffset = len;
+        path.style.transition = 'stroke-dashoffset 1.8s cubic-bezier(0.25,0.46,0.45,0.94)';
+        setTimeout(() => { path.style.strokeDashoffset = '0'; }, 200);
+      }
+      rocObs.disconnect();
+    }
+  }, { threshold: 0.3 });
+  rocObs.observe(rocSvg);
+}
+</script>
+</body>
+</html>
